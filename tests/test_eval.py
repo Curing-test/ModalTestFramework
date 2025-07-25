@@ -6,6 +6,7 @@ from models.image_model import load_image_model  # 导入图片模型加载
 from models.video_model import load_video_model  # 导入视频模型加载
 from metrics.metrics import recall_at_k, mapk  # 导入评测指标
 import os  # 导入os模块
+from utils.data_loader import batch_infer_multimodal
 
 # 假设的类别名
 TEXT_CLASSES = ["体育", "财经", "娱乐", "科技", "健康"]  # 文本类别
@@ -110,3 +111,18 @@ def test_video_model(video_model, video_data):
         y_pred.append(pred_classes)
     assert recall_at_k(y_true, y_pred, k=3) >= 0.0
     assert mapk(y_true, y_pred, k=3) >= 0.0 
+
+def test_batch_infer():
+    """
+    批量读取data目录下多模态文件并送入各自模型推理，输出推理结果
+    """
+    results = batch_infer_multimodal('data')
+    print('\n【文本推理结果】')
+    for path, pred in results['text'].items():
+        print(f'{path}: 预测类别索引={pred}')
+    print('\n【图片推理结果】')
+    for path, pred in results['image'].items():
+        print(f'{path}: 预测类别索引={pred}')
+    print('\n【视频推理结果】')
+    for path, pred in results['video'].items():
+        print(f'{path}: 预测类别索引={pred}') 
