@@ -1,0 +1,9 @@
+torch
+opencv-python
+allure-pytest
+pytest
+numpy
+scikit-learn
+matplotlib
+pillow
+pytest-html 
