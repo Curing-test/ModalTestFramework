@@ -1,0 +1,30 @@
+name: ModalTestFramework CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Generate demo data
+        run: python data/generate_demo_data.py
+      - name: Run tests and generate Allure report
+        run: |
+          pytest --alluredir=reports/allure-results
+          allure generate reports/allure-results -o reports/allure-report --clean
+      - name: Archive Allure report
+        uses: actions/upload-artifact@v3
+        with:
+          name: allure-report
+          path: reports/allure-report 

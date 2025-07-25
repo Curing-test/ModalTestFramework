@@ -1,57 +1,41 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import cv2
-from torchvision import transforms
-from PIL import Image
+import torch  # 导入PyTorch深度学习框架
+import cv2  # 导入OpenCV库，用于视频处理
+from torchvision import models, transforms  # 导入torchvision的模型和预处理工具
 
-class SimpleFrameCNN(nn.Module):
-    def __init__(self, num_classes):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(3, 16, 3, 1, 1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, 3, 1, 1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1))
-        )
-        self.fc = nn.Linear(32, num_classes)
-    def forward(self, x):
-        x = self.conv(x)
-        x = x.view(x.size(0), -1)
-        return self.fc(x)
+# 定义一个视频帧分类模型的包装类
+class VideoFrameModel:
+    def __init__(self, model_path=None, num_classes=2):
+        """
+        初始化ResNet18视频帧分类模型
+        model_path: 本地权重路径（可选）
+        num_classes: 分类类别数
+        """
+        self.model = models.resnet18(pretrained=True if model_path is None else False)  # 加载预训练模型
+        if model_path:
+            self.model.fc = torch.nn.Linear(self.model.fc.in_features, num_classes)  # 修改输出层为指定类别数
+            self.model.load_state_dict(torch.load(model_path, map_location='cpu'))  # 加载本地权重
+        self.model.eval()  # 设置为推理模式
+        self.transform = transforms.Compose([
+            transforms.ToPILImage(),  # OpenCV帧转PIL图片
+            transforms.Resize((224,224)),  # 调整大小
+            transforms.ToTensor(),  # 转为张量
+            transforms.Normalize([0.485,0.456,0.406],[0.229,0.224,0.225])  # 标准化
+        ])
 
-def load_video_model(model_path, num_classes):
-    model = SimpleFrameCNN(num_classes)
-    model.load_state_dict(torch.load(model_path, map_location='cpu'))
-    model.eval()
-    return model
-
-def preprocess_frame(frame):
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-    return transform(frame).unsqueeze(0)
-
-def infer_video(model, video_path, class_names, frame_interval=30, max_frames=10):
-    cap = cv2.VideoCapture(video_path)
-    results = []
-    frame_count = 0
-    while cap.isOpened() and len(results) < max_frames:
-        ret, frame = cap.read()
+    def predict(self, video_path, topk=2):
+        """
+        视频推理，取第一帧做分类，返回TopK类别索引
+        video_path: 视频路径
+        topk: 返回前K个类别
+        """
+        cap = cv2.VideoCapture(video_path)  # 打开视频文件
+        ret, frame = cap.read()  # 读取第一帧
+        cap.release()  # 释放视频资源
         if not ret:
-            break
-        if frame_count % frame_interval == 0:
-            input_tensor = preprocess_frame(frame)
-            with torch.no_grad():
-                logits = model(input_tensor)
-                probs = F.softmax(logits, dim=1)
-                topk = torch.topk(probs, k=5)
-                results.append([class_names[i] for i in topk.indices[0].tolist()])
-        frame_count += 1
-    cap.release()
-    return results  # 返回每帧的Top5类别名 
+            return []  # 读取失败返回空
+        input_tensor = self.transform(frame).unsqueeze(0)  # 预处理并增加batch维
+        with torch.no_grad():  # 关闭梯度计算，加速推理
+            logits = self.model(input_tensor)  # 得到输出分数
+            probs = torch.softmax(logits, dim=1)  # 转为概率
+            topk_probs, topk_indices = torch.topk(probs, k=topk)  # 取概率最大的K个类别
+            return topk_indices[0].tolist()  # 返回类别索引 

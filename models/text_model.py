@@ -1,45 +1,28 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import torch  # 导入PyTorch深度学习框架
+from transformers import BertTokenizer, BertForSequenceClassification  # 导入BERT相关的分词器和模型
 
-class TextLSTMClassifier(nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim, num_classes):
-        super().__init__()
-        self.embedding = nn.Embedding(vocab_size, embed_dim)
-        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, num_classes)
-    def forward(self, x):
-        x = self.embedding(x)
-        _, (h, _) = self.lstm(x)
-        out = self.fc(h[-1])
-        return out
+# 定义一个BERT文本分类模型的包装类
+class BertTextModel:
+    def __init__(self, model_path='bert-base-chinese', num_labels=2):
+        """
+        初始化BERT文本分类模型
+        model_path: 预训练模型名或本地路径
+        num_labels: 分类类别数
+        """
+        self.tokenizer = BertTokenizer.from_pretrained(model_path)  # 加载分词器
+        self.model = BertForSequenceClassification.from_pretrained(model_path, num_labels=num_labels)  # 加载模型
+        self.model.eval()  # 设置为推理模式，关闭dropout等
 
-def load_text_model(model_path, vocab_size, embed_dim, hidden_dim, num_classes):
-    model = TextLSTMClassifier(vocab_size, embed_dim, hidden_dim, num_classes)
-    model.load_state_dict(torch.load(model_path, map_location='cpu'))
-    model.eval()
-    return model
-
-def build_vocab(texts):
-    word2idx = {'<PAD>': 0, '<UNK>': 1}
-    idx = 2
-    for text in texts:
-        for word in text.lower().split():
-            if word not in word2idx:
-                word2idx[word] = idx
-                idx += 1
-    return word2idx
-
-def preprocess_text(text, word2idx, max_len=20):
-    tokens = text.lower().split()
-    ids = [word2idx.get(w, word2idx['<UNK>']) for w in tokens][:max_len]
-    ids += [word2idx['<PAD>']] * (max_len - len(ids))
-    return torch.tensor([ids], dtype=torch.long)
-
-def infer_text(model, text, word2idx):
-    input_tensor = preprocess_text(text, word2idx)
-    with torch.no_grad():
-        logits = model(input_tensor)
-        probs = F.softmax(logits, dim=1)
-        topk = torch.topk(probs, k=5)
-        return topk.indices[0].tolist(), topk.values[0].tolist()  # 返回类别索引和概率 
+    def predict(self, text, topk=2):
+        """
+        文本推理，返回TopK类别索引
+        text: 输入文本
+        topk: 返回前K个类别
+        """
+        # 对输入文本进行分词和编码，转为模型需要的张量格式
+        inputs = self.tokenizer(text, return_tensors='pt', truncation=True, padding=True, max_length=32)
+        with torch.no_grad():  # 关闭梯度计算，加速推理
+            logits = self.model(**inputs).logits  # 得到输出分数
+            probs = torch.softmax(logits, dim=1)  # 转为概率
+            topk_probs, topk_indices = torch.topk(probs, k=topk)  # 取概率最大的K个类别
+            return topk_indices[0].tolist()  # 返回类别索引 

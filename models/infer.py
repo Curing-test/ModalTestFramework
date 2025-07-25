@@ -1,35 +1,32 @@
-import torch
-from PIL import Image
-import cv2
-import numpy as np
+import torch  # 导入PyTorch深度学习框架
+from PIL import Image  # 导入PIL库，用于图片处理
+import cv2  # 导入OpenCV库，用于视频处理
+import numpy as np  # 导入numpy库
 
-from models.text_model import load_text_model, infer_text, build_vocab
-from models.image_model import load_image_model, infer_image
-from models.video_model import load_video_model, infer_video
+from models.text_model import BertTextModel  # 导入自定义文本模型
+from models.image_model import ResNetImageModel  # 导入自定义图片模型
+from models.video_model import VideoFrameModel  # 导入自定义视频模型
 
 # 文本推理入口
-# model: TextLSTMClassifier实例
+# model: BertTextModel实例
 # text: 输入文本
-# word2idx: 词表
-# 返回: top5类别索引和概率
+# 返回: topK类别索引
 
-def run_text_infer(model, text, word2idx):
-    return infer_text(model, text, word2idx)
+def infer_text(model, text):
+    return model.predict(text)  # 调用模型的predict方法进行文本推理
 
 # 图片推理入口
-# model: ResNet18实例
+# model: ResNetImageModel实例
 # image_path: 图片路径
-# class_names: 类别名列表
-# 返回: top5类别名和概率
+# 返回: topK类别索引
 
-def run_image_infer(model, image_path, class_names):
-    return infer_image(model, image_path, class_names)
+def infer_image(model, image_path):
+    return model.predict(image_path)  # 调用模型的predict方法进行图片推理
 
 # 视频推理入口
-# model: SimpleFrameCNN实例
+# model: VideoFrameModel实例
 # video_path: 视频路径
-# class_names: 类别名列表
-# 返回: 每帧top5类别名
+# 返回: topK类别索引
 
-def run_video_infer(model, video_path, class_names, frame_interval=30, max_frames=10):
-    return infer_video(model, video_path, class_names, frame_interval, max_frames) 
+def infer_video(model, video_path):
+    return model.predict(video_path)  # 调用模型的predict方法进行视频推理 
