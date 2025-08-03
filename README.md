@@ -10,12 +10,18 @@
 - 支持Allure测试报告自动生成
 - 支持CI/CD自动化闭环
 - 支持评测报告自动邮件通知
+- **新增：CLIP模型消融实验，定量分析不同组件贡献**
+- **新增：对抗性攻击方法(PGD、FGSM)，主动挖掘模型鲁棒性边界**
 
 ## 目录结构
 ```
 ./
 ├── data/                # 测试数据（文本、图片、视频）
 ├── models/              # PyTorch模型与推理代码
+│   ├── clip_model.py    # CLIP模型包装类（支持消融实验）
+│   └── adversarial_attack.py  # 对抗性攻击实现
+├── experiments/         # 实验相关
+│   └── ablation_robustness_study.py  # 消融实验和鲁棒性研究
 ├── metrics/             # 评测指标实现
 ├── tests/               # 自动化测试用例
 ├── utils/               # 工具类（邮件、预处理等）
@@ -31,10 +37,36 @@
 3. 运行主程序：`python main.py`
 4. 查看`reports/allure-report/index.html`，并查收邮件
 
+## 新增功能使用
+
+### 消融实验
+```bash
+# 运行CLIP模型消融实验
+python experiments/ablation_robustness_study.py
+```
+
+### 对抗性攻击
+```python
+from models.clip_model import CLIPModelWrapper
+from models.adversarial_attack import MultiModalAdversarialAttack
+
+# 初始化模型
+clip_model = CLIPModelWrapper()
+attack_model = MultiModalAdversarialAttack(clip_model)
+
+# FGSM攻击
+adv_image = attack_model.image_attack_fgsm("data/test1.jpg", "a cat", epsilon=0.1)
+
+# PGD攻击
+adv_image = attack_model.image_attack_pgd("data/test1.jpg", "a cat", epsilon=0.1, steps=40)
+```
+
 ## 适用场景
 - 多模态大模型评测
 - 自动化CI/CD集成
 - 研发、测试、算法团队协作
+- **模型组件贡献度分析**
+- **模型鲁棒性评估**
 
 ---
 

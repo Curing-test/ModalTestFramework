@@ -6,4 +6,6 @@ numpy
 scikit-learn
 matplotlib
 pillow
-pytest-html 
+pytest-html
+transformers
+flask 
